@@ -1,0 +1,116 @@
+//#include <Wire.h>
+//#include "rgb_lcd.h"
+#include "IotHttpClient.h"
+#include "IotUtils.h"
+
+#include <LWiFi.h>
+#include <string>
+
+// ********************************************
+// ****** START user defined definitions ******
+// ********************************************
+#define WIFI_SSID                       "DeGea"
+#define WIFI_PASSWORD                   "broklyncat95"
+
+#define fsrPin A0    // the FSR and 10K pulldown are connected to a0
+int fsrReading;     // the analog reading from the FSR resistor divider
+#define BUZZER_PIN 6
+int buttonState = 0;
+// ******************************************
+// ****** END user defined definitions ******
+// ******************************************
+
+//#define DELAY 60000
+
+//rgb_lcd lcd;
+
+//const int colorR = 0;
+//const int colorG = 255;
+//const int colorB = 0;
+
+// ******************************************
+// ****** setup()****************************
+// ******************************************
+void setup()
+{
+  Serial.begin(9600);
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(fsrPin, INPUT);
+  LWiFi.begin();
+  delay(6000);
+
+}
+
+// ******************************************
+// ****** loop() ****************************
+// ******************************************
+void loop()
+{
+  Serial.print("\nSearching for Wifi AP...\n");
+
+  if ( LWiFi.connectWPA(WIFI_SSID, WIFI_PASSWORD) != 1 )
+  {
+    Serial.println("Failed to Connect to Wifi.");
+  }
+  else
+  {
+    Serial.println("Connected to WiFi");
+
+    //   lcd.setCursor(0, 0);
+    // lcd.print("Connected WiFi");
+
+    // Generate some random data to send to Azure cloud.
+    srand(vm_ust_get_current_time());
+
+    int Station_id = 1 + (rand() % 50);
+    int S_status = fsrReading ;
+    fsrReading = analogRead(fsrPin);
+
+    Serial.print("Analog reading = ");
+    Serial.print(fsrReading);     // the raw analog reading
+        // Construct a JSON data string using the random data.
+    std::string json_iot_data;
+
+    json_iot_data += "{ \"StationId\":" + IotUtils::IntToString(Station_id);
+    
+    std::string GOOD = "GOOD";
+    std::string  CLEARSOON= "CLEAR SOON";
+    std::string CLEARNOW = "CLEAR NOW";
+    // We'll have a few threshholds, qualitatively determined
+    if (fsrReading < 100) {
+      
+      Serial.println("(Good)");
+      json_iot_data +=", \"Status\":" + GOOD;
+    json_iot_data += " }";
+    } else if (fsrReading < 340) {
+      Serial.println("(Almost full)");
+       json_iot_data +=", \"Status\":" + CLEARSOON;
+    json_iot_data += " }";
+    } else if (fsrReading > 480) {
+      Serial.println("(Full)");
+      digitalWrite(BUZZER_PIN, HIGH);
+      digitalWrite(BUZZER_PIN, LOW);
+      delay(3000);
+       json_iot_data +=", \"Status\":" + CLEARNOW;
+    json_iot_data += " }";
+    }
+    delay(1000);
+
+
+    // Send the JSON data to the Azure cloud and get the HTTP status code.
+    IotHttpClient     https_client;
+
+    int http_code = https_client.SendAzureHttpsData(json_iot_data);
+
+    Serial.println("Print HTTP Code:" + String(http_code));
+    //lcd.setCursor(0, 1);
+    //lcd.print("Code:" + String(http_code));
+  }
+  //  Serial.println("Disconneting HTTP connection");
+  LWiFi.disconnect();
+
+  // Sleeps for a while...
+  delay(60000);
+}
+
+
