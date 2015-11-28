@@ -1,0 +1,4 @@
+LEDs and touch sensor are plunged into the digital port.LCD is placed into I2C ports and the pressure sensor is placed in the 
+analog port.For the pressure sensor, it requires a bread board, pins and conversion wires to connect it to the groove shield
+since it is not really compatible with linkit One. Lastly, we need the linkit One batteries or usd cable to connect to a power
+source. If you need to upload codes you will need the usb cable.
